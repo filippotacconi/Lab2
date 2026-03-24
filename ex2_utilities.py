@@ -35,11 +35,12 @@ def bond_payment_dates(
 
     payment_dates = []
     counter = 1
-    for _ in range(maturity * coupon_freq):
+    for _ in range(maturity * coupon_freq):  # for runs for total payment dates
         payment_dt = business_date_offset(
             issue_date, month_offset=(12 // coupon_freq) * counter
         )
-        # Complete #
+        # Append the calculated date to the list
+        payment_dates.append(payment_dt)
 
         counter += 1
 
@@ -75,11 +76,11 @@ def bond_cash_flows(
     cash_flows_dates = bond_payment_dates(issue_date, maturity, coupon_freq)
 
     # Coupon payments
-    dates = [ref_date] + cash_flows_dates
+    dates = [ref_date] + cash_flows_dates 
     cash_flows = pd.Series(
         data=[
-             coupon_rate
-            for i in range(1, len(dates))  # Complete
+             (coupon_rate / coupon_freq) * notional
+            for i in range(1, len(dates))  
         ],
         index=cash_flows_dates,
     )
@@ -181,8 +182,16 @@ def defaultable_bond_dirty_price_from_z_spread(
     )
 
     # Discount factors with z-spread
-    discount_factors = None
+    z_spread_dfs = pd.Series(
+        [
+            get_discount_factor_by_zero_rates_linear_interp(
+                ref_date, date, discount_factors.index, discount_factors.values
+            ) * np.exp(-z_spread * year_frac_act_x(ref_date, date, 365))
+            for date in cash_flows.index
+        ],
+        index=cash_flows.index,
+    )
 
     # Calculate the dirty price
-    dirty_price = None
-    return 
+    dirty_price = sum(cash_flows * z_spread_dfs)
+    return dirty_price

@@ -7,13 +7,16 @@ from typing import List, Union
 import numpy as np
 import pandas as pd
 import datetime as dt
-from ex1_utilities import (
+from ex1_utilities import (   # removed business_date_offset, which is not in ex1_utilities
     year_frac_act_x,
     year_frac_30e_360,
-    business_date_offset,
     get_discount_factor_by_zero_rates_linear_interp,
 )
 
+# called business_date_offset, which is in date_functions 
+from date_functions import (
+    business_date_offset,
+)
 
 def bond_payment_dates(
     issue_date: Union[dt.date, pd.Timestamp], maturity: int, coupon_freq: int

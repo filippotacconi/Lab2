@@ -127,10 +127,18 @@ def defaultable_bond_dirty_price_from_intensity(
     )
 
     # Discount factors
-    discount_factors = None 
+    discount_factors = pd.Series(
+        data=[
+            get_discount_factor_by_zero_rates_linear_interp(
+                ref_date, date, discount_factors.index, discount_factors.values
+            )
+            for date in cash_flows.index
+        ],
+        index=cash_flows.index,
+    ) 
 
     # Calculate the survival probabilities and default probabilities
-    if isinstance(intensity, float):                 # if intensity is a float -> constant value
+    if isinstance(intensity, (float, np.floating)):                 # if intensity is a float -> constant value
         survival_probs = np.exp(
             [
                 -intensity * year_frac_act_x(ref_date, date, 365)
@@ -138,15 +146,53 @@ def defaultable_bond_dirty_price_from_intensity(
             ]
         )
         survival_probs = pd.Series(data=survival_probs, index=cash_flows.index)
-    else:                                            # if instensity is not a float -> pd.Series -> piecewise constant
-    
-        survival_probs = None
+    else:
+        # Piecewise constant intensity: intensity is a pd.Series
+        # index = pillar dates (e.g. expiry1, expiry2), values = λ on each segment
+        # P(t, t_n) = exp(-Σ_k λ_k * Δt_k) accumulated over the segments up to t_n
+        survival_probs_list = []
+        for cf_date in cash_flows.index:
+            log_surv = 0.0
+            prev_date = ref_date
+            for pillar_date, lam in intensity.items():
+                # Determine the end of the current intensity segment
+                seg_end = min(cf_date, pillar_date)
+                dt_seg = year_frac_act_x(prev_date, seg_end, 365)
+                log_surv -= lam * dt_seg
+                prev_date = seg_end
+                if seg_end >= cf_date:
+                    break
+            survival_probs_list.append(np.exp(log_surv))
+        survival_probs = pd.Series(data=survival_probs_list, index=cash_flows.index)
 
-    default_probs = None
+    # -----------------------------------------------------------------------
+    # Default probabilities between consecutive payment dates
+    # dp(t_{n-1} -> t_n) = P(t, t_{n-1}) - P(t, t_n)
+    # Prepend P(t, t_0) = 1  (no default has occurred yet at ref_date)
+    # -----------------------------------------------------------------------
+    surv_shifted = pd.Series(
+        data=np.concatenate([[1.0], survival_probs.values[:-1]]),
+        index=cash_flows.index,
+    )
+    default_probs = surv_shifted - survival_probs  # P(t_{n-1}) - P(t_n) per period
 
-    # Calculate the dirty price
-    dirty_price = None
-    return 
+    # -----------------------------------------------------------------------
+    # Dirty price formula:
+    # C̄(t) = Σ_n CF_n * B(t,t_n) * P(t,t_n)          <- discounted defaultable cash flows
+    #        + π * Σ_n B(t,t_n) * (P(t,t_{n-1}) - P(t,t_n))  <- recovery leg
+    # -----------------------------------------------------------------------
+    # Defaultable discount factors: B̄(t,t_n) = B(t,t_n) * P(t,t_n)
+    defaultable_dfs = discount_factors * survival_probs
+
+    # Cash-flow leg: each cash flow (coupon or coupon+notional) weighted by B̄
+    cf_leg = (cash_flows * defaultable_dfs).sum()
+
+    # Recovery leg: e(t; t_{n-1}, t_n) = B(t,t_n) * (P(t,t_{n-1}) - P(t,t_n))
+    recovery_leg = recovery_rate * (discount_factors * default_probs).sum()
+
+    dirty_price = cf_leg + recovery_leg
+
+    return dirty_price
 
 
 def defaultable_bond_dirty_price_from_z_spread(

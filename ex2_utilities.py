@@ -138,7 +138,7 @@ def defaultable_bond_dirty_price_from_intensity(
     ) 
 
     # Calculate the survival probabilities and default probabilities
-    if isinstance(intensity, (float, np.floating)):                 # if intensity is a float -> constant value
+    if isinstance(intensity, float):                 # if intensity is a float -> constant value
         survival_probs = np.exp(
             [
                 -intensity * year_frac_act_x(ref_date, date, 365)

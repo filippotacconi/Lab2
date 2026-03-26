@@ -188,7 +188,7 @@ def defaultable_bond_dirty_price_from_intensity(
     cf_leg = (cash_flows * defaultable_dfs).sum()
 
     # Recovery leg: e(t; t_{n-1}, t_n) = B(t,t_n) * (P(t,t_{n-1}) - P(t,t_n))
-    recovery_leg = recovery_rate * (discount_factors * default_probs).sum()
+    recovery_leg = notional * recovery_rate * (discount_factors * default_probs).sum() # modified prova
 
     dirty_price = cf_leg + recovery_leg
 

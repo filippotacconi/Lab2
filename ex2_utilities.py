@@ -147,9 +147,6 @@ def defaultable_bond_dirty_price_from_intensity(
         )
         survival_probs = pd.Series(data=survival_probs, index=cash_flows.index)
     else:
-        # Piecewise constant intensity: intensity is a pd.Series
-        # index = pillar dates (e.g. expiry1, expiry2), values = λ on each segment
-        # P(t, t_n) = exp(-Σ_k λ_k * Δt_k) accumulated over the segments up to t_n
         survival_probs_list = []
         for cf_date in cash_flows.index:
             log_surv = 0.0
@@ -165,22 +162,15 @@ def defaultable_bond_dirty_price_from_intensity(
             survival_probs_list.append(np.exp(log_surv))
         survival_probs = pd.Series(data=survival_probs_list, index=cash_flows.index)
 
-    # -----------------------------------------------------------------------
+  
     # Default probabilities between consecutive payment dates
-    # dp(t_{n-1} -> t_n) = P(t, t_{n-1}) - P(t, t_n)
-    # Prepend P(t, t_0) = 1  (no default has occurred yet at ref_date)
-    # -----------------------------------------------------------------------
     surv_shifted = pd.Series(
         data=np.concatenate([[1.0], survival_probs.values[:-1]]),
         index=cash_flows.index,
     )
     default_probs = surv_shifted - survival_probs  # P(t_{n-1}) - P(t_n) per period
 
-    # -----------------------------------------------------------------------
-    # Dirty price formula:
-    # C̄(t) = Σ_n CF_n * B(t,t_n) * P(t,t_n)          <- discounted defaultable cash flows
-    #        + π * Σ_n B(t,t_n) * (P(t,t_{n-1}) - P(t,t_n))  <- recovery leg
-    # -----------------------------------------------------------------------
+   
     # Defaultable discount factors: B̄(t,t_n) = B(t,t_n) * P(t,t_n)
     defaultable_dfs = discount_factors * survival_probs
 

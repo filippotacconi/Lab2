@@ -79,7 +79,7 @@ def bond_cash_flows(
     dates = [ref_date] + cash_flows_dates 
     cash_flows = pd.Series(
         data=[
-             coupon_rate * year_frac_act_x,(dates[i-1],dates[i],365) * notional
+             coupon_rate * year_frac_30e_360(dates[i-1],dates[i]) * notional
             for i in range(1, len(dates))  
         ],
         index=cash_flows_dates,

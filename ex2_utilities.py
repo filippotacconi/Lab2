@@ -168,17 +168,17 @@ def defaultable_bond_dirty_price_from_intensity(
         data=np.concatenate([[1.0], survival_probs.values[:-1]]),
         index=cash_flows.index,
     )
-    default_probs = surv_shifted - survival_probs  # P(t_{n-1}) - P(t_n) per period
+    default_probs = surv_shifted - survival_probs  
 
    
-    # Defaultable discount factors: B̄(t,t_n) = B(t,t_n) * P(t,t_n)
+    # Defaultable discount factors
     defaultable_dfs = discount_factors * survival_probs
 
-    # Cash-flow leg: each cash flow (coupon or coupon+notional) weighted by B̄
+    # Cash-flow leg
     cf_leg = (cash_flows * defaultable_dfs).sum()
 
-    # Recovery leg: e(t; t_{n-1}, t_n) = B(t,t_n) * (P(t,t_{n-1}) - P(t,t_n))
-    recovery_leg = notional * recovery_rate * (discount_factors * default_probs).sum() # modified prova
+    # Recovery leg
+    recovery_leg = notional * recovery_rate * (discount_factors * default_probs).sum() 
 
     dirty_price = cf_leg + recovery_leg
 
